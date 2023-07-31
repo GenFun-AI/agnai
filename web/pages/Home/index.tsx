@@ -49,10 +49,7 @@ const HomePage: Component = () => {
         </div>
         <Card border>
           <div class="leading-6">
-            <b>Agnaistic</b> is a "bring your own AI" chat service. It is completely open-source and
-            free to use. You only pay for the third-party AI services that you choose to use. Your
-            conversations are completely private and are never shared with anyone unless you invite
-            them to your chat.
+            <b>Agnaistic</b> is a "bring your own AI" chat service.
           </div>
         </Card>
 
@@ -88,11 +85,6 @@ const HomePage: Component = () => {
         <Card border>
           <div class="flex justify-center text-xl font-bold">Notable Features</div>
           <div class="flex flex-col gap-2 leading-6">
-            <p>
-              <b class="highlight">Agnaistic</b> is completely free to use. It is free to register.
-              Your data will be kept private and you can permanently delete your data at any time.
-              We take your privacy very seriously.
-            </p>
             <p>
               <b class="highlight">Register</b> to have your data available on all of your devices.
             </p>
