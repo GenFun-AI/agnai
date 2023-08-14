@@ -8,8 +8,11 @@ networks:
 
 services:
   app:
-    image: ghcr.io/agnaistic/agnaistic:latest
+    image: agnaistic:latest
     restart: always
+    build:
+      context: ./
+      dockerfile: Dockerfile
     ports:
       - '3001:3001'
     environment:
