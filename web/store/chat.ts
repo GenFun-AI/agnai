@@ -4,11 +4,12 @@ import { AppSchema } from '../../common/types/schema'
 import { EVENTS, events } from '../emitter'
 import type { ChatModal } from '../pages/Chat/ChatOptions'
 import { clearDraft } from '../shared/hooks'
-import { storage } from '../shared/util'
+import { storage, toMap } from '../shared/util'
 import { api } from './api'
 import { createStore, getStore } from './create'
 import { AllChat, chatsApi } from './data/chats'
 import { msgsApi } from './data/messages'
+import { treesApi } from './data/tree'
 import { usersApi } from './data/user'
 import { msgStore } from './message'
 import { subscribe } from './socket'
@@ -23,6 +24,7 @@ export type ChatState = {
   loaded: boolean
   // All user chats a user owns or is a member of
   allChats: AllChat[]
+  allChars: { map: Record<string, AppSchema.Character>; list: AppSchema.Character[] }
   // All chats for a particular character
   char?: {
     chats: AppSchema.Chat[]
@@ -77,6 +79,7 @@ const initState: ChatState = {
   lastChatId: null,
   loaded: false,
   allChats: [],
+  allChars: { map: {}, list: [] },
   char: undefined,
   active: undefined,
 
@@ -106,6 +109,7 @@ export const chatStore = createStore<ChatState>('chat', {
   lastChatId: storage.localGetItem('lastChatId'),
   loaded: false,
   allChats: [],
+  allChars: { map: {}, list: [] },
   chatProfiles: [],
   memberIds: {},
   opts: {
@@ -176,15 +180,12 @@ export const chatStore = createStore<ChatState>('chat', {
         },
       }
     },
-    async *getChat(prev, id: string, clear = true) {
+    async *getChat(_, id: string, clear = true) {
       if (clear) {
         yield { loaded: false, active: undefined }
       }
-      msgStore.setState({
-        msgs: [],
-        activeChatId: id,
-        activeCharId: undefined,
-      })
+
+      events.emit(EVENTS.clearMsgs, id)
       const res = await chatsApi.getChat(id)
 
       yield { loaded: true }
@@ -195,10 +196,10 @@ export const chatStore = createStore<ChatState>('chat', {
 
         storage.localSetItem('lastChatId', id)
 
-        msgStore.setState({
-          msgs: res.result.messages,
-          activeChatId: id,
-          activeCharId: res.result.character._id,
+        events.emit(EVENTS.receiveMsgs, {
+          chatId: id,
+          characterId: res.result.character._id,
+          messages: res.result.messages,
         })
 
         const isMultiChars =
@@ -282,31 +283,7 @@ export const chatStore = createStore<ChatState>('chat', {
         }
       }
     },
-    async *editChatGenSettings(
-      { active },
-      chatId: string,
-      settings: AppSchema.Chat['genSettings'],
-      onSucces?: () => void
-    ) {
-      const res = await chatsApi.editChatGenSettings(chatId, settings)
-      if (res.error) {
-        toastStore.error(`Failed to update generation settings: ${res.error}`)
-        return
-      }
 
-      if (res.result) {
-        if (active?.chat._id === chatId) {
-          yield {
-            active: {
-              ...active,
-              chat: { ...active.chat, genSettings: settings, genPreset: undefined },
-            },
-          }
-          toastStore.success('Updated chat generation settings')
-          onSucces?.()
-        }
-      }
-    },
     async *editChatGenPreset({ active }, chatId: string, preset: string, onSucces?: () => void) {
       const res = await chatsApi.editChatGenPreset(chatId, preset)
       if (res.error) toastStore.error(`Failed to update generation settings: ${res.error}`)
@@ -328,8 +305,12 @@ export const chatStore = createStore<ChatState>('chat', {
       }
 
       if (res.result) {
-        events.emit(EVENTS.charsReceived, res.result.characters)
-        return { allChats: res.result.chats.sort(sortDesc) }
+        events.emit(EVENTS.allChars, res.result.characters)
+        const allChars = {
+          map: toMap(res.result.characters),
+          list: res.result.characters,
+        }
+        return { allChats: res.result.chats.sort(sortDesc), allChars }
       }
     },
     getBotChats: async (_, characterId: string) => {
@@ -518,6 +499,18 @@ export const chatStore = createStore<ChatState>('chat', {
     closePrompt() {
       return { prompt: undefined }
     },
+
+    async forkChat({ active }, messageId: string) {
+      if (!active) return
+      const res = await treesApi.forkChat(active.chat._id, messageId)
+      if (res.result) {
+        events.emit(EVENTS.receiveMsgs, {
+          characterId: active.chat.characterId,
+          chatId: active.chat._id,
+          messages: res.result.messages,
+        })
+      }
+    },
   }
 })
 
@@ -696,7 +689,7 @@ subscribe('service-prompt', { id: 'string', prompt: 'any' }, (body) => {
   })
 })
 
-subscribe('chat-temp-chararacter', { chatId: 'string', character: 'any' }, (body) => {
+subscribe('chat-temp-character', { chatId: 'string', character: 'any' }, (body) => {
   const { active, allChats } = chatStore.getState()
   const nextChats = allChats.map((chat) => {
     if (chat._id !== body.chatId) return chat

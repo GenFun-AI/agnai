@@ -21,6 +21,7 @@ export type AdapterSetting = {
   hidden?: boolean
 
   setting: SettingType
+  preset?: boolean
 }
 
 type SettingType =
@@ -55,6 +56,7 @@ export const AI_ADAPTERS = [
   'goose',
   'replicate',
   'openrouter',
+  'mancer',
 ] as const
 export const CHAT_ADAPTERS = ['default', ...AI_ADAPTERS] as const
 
@@ -197,6 +199,7 @@ export const ADAPTER_LABELS: { [key in AIAdapter]: string } = {
   goose: 'Goose AI',
   replicate: 'Replicate',
   openrouter: 'OpenRouter',
+  mancer: 'Mancer',
 }
 
 export const INSTRUCT_SERVICES: { [key in AIAdapter]?: boolean } = {
@@ -219,14 +222,6 @@ export type PresetAISettings = Omit<
   | 'order'
   | 'useGaslight'
 >
-
-export const SUPPORTS_INSTRUCT: { [key in AIAdapter]?: (user: AppSchema.User) => boolean } = {
-  claude: () => true,
-  openai: () => true,
-  kobold: (opts) => opts.thirdPartyFormat !== 'kobold',
-  openrouter: () => true,
-  scale: () => true,
-}
 
 /**
  * This is al
@@ -251,7 +246,8 @@ export const adapterSettings: {
     'goose',
     'openrouter',
   ],
-  ultimeJailbreak: ['openai', 'claude', 'kobold', 'scale', 'openrouter'],
+  ultimeJailbreak: ['openai', 'claude', 'kobold', 'scale', 'openrouter', 'novel'],
+  prefill: ['claude'],
   ignoreCharacterUjb: ['openai', 'claude', 'kobold', 'openrouter'],
 
   topP: ['horde', 'kobold', 'claude', 'ooba', 'openai', 'novel'],
@@ -262,6 +258,10 @@ export const adapterSettings: {
   topA: ['horde', 'novel', 'kobold'],
   topK: ['horde', 'novel', 'kobold', 'ooba', 'claude'],
   typicalP: ['horde', 'novel', 'kobold', 'ooba'],
+
+  topG: ['novel'],
+  mirostatLR: ['novel'],
+  mirostatTau: ['novel'],
   cfgScale: ['novel'],
   cfgOppose: ['novel'],
 
@@ -272,7 +272,7 @@ export const adapterSettings: {
   oaiModel: ['openai', 'kobold'],
   frequencyPenalty: ['openai', 'kobold', 'novel'],
   presencePenalty: ['openai', 'kobold', 'novel'],
-  streamResponse: ['openai', 'kobold', 'novel', 'claude'],
+  streamResponse: ['openai', 'kobold', 'novel', 'claude', 'ooba'],
   openRouterModel: ['openrouter'],
 
   addBosToken: ['ooba'],
@@ -331,10 +331,24 @@ export const settingLabels: { [key in keyof PresetAISettings]: string } = {
   thirdPartyFormat: 'Third Party Format',
   thirdPartyUrl: 'Third Party URL',
   ultimeJailbreak: 'Jailbreak',
+  prefill: 'Bot response prefilling',
   useTemplateParser: 'Use V2 Prompt Parser',
+  topG: 'Top G',
+  mirostatTau: 'Mirostat Tau',
+  mirostatLR: 'Mirostat LR',
 }
 
 export const samplerOrders: { [key in AIAdapter]?: Array<keyof PresetAISettings> } = {
   kobold: ['topK', 'topA', 'topP', 'tailFreeSampling', 'typicalP', 'temp', 'repetitionPenalty'],
-  novel: ['temp', 'topK', 'topP', 'tailFreeSampling', 'topA', 'typicalP', 'cfgScale'],
+  novel: [
+    'temp',
+    'topK',
+    'topP',
+    'tailFreeSampling',
+    'topA',
+    'typicalP',
+    'cfgScale',
+    'topG',
+    'mirostatTau',
+  ],
 }

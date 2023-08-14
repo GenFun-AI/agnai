@@ -100,7 +100,7 @@ const CharacterList: Component = () => {
     characterStore.getCharacters()
   })
 
-  createEffect(() => {
+  onMount(() => {
     tagStore.updateTags(state.list)
   })
 
@@ -196,7 +196,7 @@ const CharacterList: Component = () => {
       <Characters
         characters={state.list}
         loading={state.loading || false}
-        loaded={state.loaded}
+        loaded={!!state.loaded}
         type={view()}
         filter={search()}
         sortField={sortField()}
@@ -319,7 +319,7 @@ const Characters: Component<{
       </Switch>
 
       <Show when={download()}>
-        <DownloadModal show close={() => setDownload()} char={download()!} />
+        <DownloadModal show close={() => setDownload()} charId={download()!._id} />
       </Show>
       <DeleteCharacterModal
         char={showDelete()}

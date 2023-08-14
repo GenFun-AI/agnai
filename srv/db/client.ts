@@ -3,17 +3,19 @@ import { config } from '../config'
 import { logger } from '../logger'
 import { AllDoc, Doc } from '../../common/types/schema'
 
-const uri = `mongodb://${config.db.host}:${config.db.port}`
+const uri = config.db.uri || `mongodb://${config.db.host}:${config.db.port}`
 let connected = false
+let retrying = false
 
 let database: Db | null = null
 
-export async function connect(silent = false) {
-  if (!config.db.host) {
+export async function connect(verbose = false) {
+  if (!config.db.uri && !config.db.host) {
     logger.info(`No MongoDB host provided: Running in anonymous-only mode`)
     return
   }
 
+  retrying = false
   const cli = new MongoClient(uri, { ignoreUndefined: true })
   try {
     const timer = setTimeout(() => cli.close(), 2000)
@@ -22,21 +24,25 @@ export async function connect(silent = false) {
 
     database = cli.db(config.db.name)
 
-    cli.on('close', () => {
+    const onClose = (event: string) => () => {
+      if (retrying) return
+      retrying = true
       connected = false
-      logger.warn('MongoDB disconnected. Retrying...')
+      logger.warn({ cause: event }, 'MongoDB disconnected. Retrying...')
       setTimeout(connect, 5000)
-    })
+    }
 
-    logger.info('Connected to MongoDB')
+    cli.on('connectionPoolCleared', onClose('connectionPoolCleared'))
+
+    logger.info({ uri }, 'Connected to MongoDB')
     connected = true
     return database
   } catch (ex) {
-    if (!silent) {
-      logger.warn(`Could not connect to database: Running in anonymous-only mode`)
+    if (verbose) {
+      logger.warn({ err: ex }, `Could not connect to database: Running in anonymous-only mode`)
     }
 
-    setTimeout(() => connect(true), 5000)
+    setTimeout(() => connect(config.db.verbose), 5000)
   }
 }
 
@@ -70,4 +76,5 @@ export async function createIndexes() {
   await db('apikey').createIndex({ userId: 1 }, { name: 'apikey_userId' })
   await db('apikey').createIndex({ apikey: 1 }, { name: 'apikey_apikey' })
   await db('apikey').createIndex({ code: 1 }, { name: 'apikey_code' })
+  await db('chat-tree').createIndex({ chatId: 1 }, { name: 'chat-trees_chatId' })
 }

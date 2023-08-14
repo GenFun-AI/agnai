@@ -68,11 +68,14 @@ const ChatSettings: Component<{
     const noScenario = [{ value: '', label: "None (use character's scenario)" }]
     if (scenarioState.loading || scenarioState.partial) {
       return noScenario.concat(
-        (state.chat?.scenarioIds ?? []).map((id) => ({ value: id, label: id }))
+        (state.chat?.scenarioIds ?? []).map((id) => ({
+          value: id,
+          label: '...',
+        }))
       )
     } else {
       return noScenario.concat(
-        scenarioState.scenarios.map((s) => ({ label: s.name, value: s._id }))
+        scenarioState.scenarios.map((s) => ({ label: s.name || 'Untitled scenario', value: s._id }))
       )
     }
   })
@@ -97,7 +100,7 @@ const ChatSettings: Component<{
     const payload = {
       ...body,
       overrides,
-      scenarioIds: scenarioId ? [scenarioId] : undefined,
+      scenarioIds: scenarioId ? [scenarioId] : [],
       scenarioStates: states(),
     }
     chatStore.editChat(state.chat?._id!, payload, useOverrides(), () => {
@@ -114,13 +117,13 @@ const ChatSettings: Component<{
 
   const Footer = (
     <>
-      <div class="flex w-full justify-between">
+      <div class="flex w-full justify-between gap-2">
         <div>
           <Button schema="secondary" onClick={revert}>
             Reset Character
           </Button>
         </div>
-        <div class="flex gap-4">
+        <div class="flex gap-2">
           <Button schema="secondary" onClick={props.close}>
             Cancel
           </Button>
@@ -216,7 +219,7 @@ const ChatSettings: Component<{
         />
       </Card>
 
-      <Show when={cfg.flags.events && scenarios().length > 1}>
+      <Show when={scenarios().length > 1}>
         <Card>
           <Select
             fieldName="scenarioId"

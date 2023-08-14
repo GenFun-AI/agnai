@@ -88,7 +88,21 @@ export async function getCharacter(
 }
 
 export async function getCharacters(userId: string) {
-  const list = await db('character').find({ userId }).toArray()
+  const list = await db('character')
+    .find({ userId })
+    .project({
+      _id: 1,
+      userId: 1,
+      name: 1,
+      avatar: 1,
+      description: 1,
+      favorite: 1,
+      tags: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    })
+    .toArray()
+
   return list
 }
 

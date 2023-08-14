@@ -80,11 +80,39 @@ const HomePage: Component = () => {
             </div>
           </TitleCard>
 
+          <TitleCard type="bg" title="Useful Links" center>
+            <div class="flex flex-wrap justify-center gap-2">
+              <a href="/discord" target="_blank">
+                <Pill inverse>Discord</Pill>
+              </a>
+
+              <A class="link" href="/changelog">
+                <Pill inverse>Change Log</Pill>
+              </A>
+
+              <A href="https://github.com/agnaistic/agnai" target="_blank">
+                <Pill inverse>GitHub</Pill>
+              </A>
+
+              <A class="link" href="/terms-of-service">
+                <Pill inverse>Terms of Service</Pill>
+              </A>
+
+              <A class="link" href="/privacy-policy">
+                <Pill inverse>Privacy Policy</Pill>
+              </A>
+            </div>
+          </TitleCard>
         </div>
 
         <Card border>
           <div class="flex justify-center text-xl font-bold">Notable Features</div>
           <div class="flex flex-col gap-2 leading-6">
+            <p>
+              <b class="highlight">Agnaistic</b> is completely free to use. It is free to register.
+              Your data will be kept private and you can permanently delete your data at any time.
+              We take your privacy very seriously.
+            </p>
             <p>
               <b class="highlight">Register</b> to have your data available on all of your devices.
             </p>

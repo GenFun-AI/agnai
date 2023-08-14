@@ -10,6 +10,16 @@ export async function getChatOnly(id: string) {
   return chat
 }
 
+export async function getChatWithTree(chatId: string) {
+  const [chat, tree] = await Promise.all([getChatOnly(chatId), getChatTree(chatId)])
+  return { chat, tree }
+}
+
+export async function getChatTree(chatId: string) {
+  const tree = await db('chat-tree').findOne({ chatId })
+  return tree
+}
+
 export async function getChat(id: string) {
   const chat = await db('chat').findOne({ _id: id })
   if (!chat) return
@@ -149,24 +159,25 @@ export async function getAllChats(userId: string) {
       { $unwind: { path: '$character' } },
       {
         $project: {
+          _id: 1,
           userId: 1,
-          memoryId: 1,
-          memberIds: 1,
           name: 1,
           characterId: 1,
           characters: 1,
-          adapter: 1,
-          greeting: 1,
-          scenario: 1,
-          scenarioIds: 1,
-          sampleChat: 1,
-          overrides: 1,
           createdAt: 1,
           updatedAt: 1,
-          genPreset: 1,
-          genSettings: 1,
-          // tempCharacters: 1,
           'character.name': 1,
+
+          // memoryId: 0,
+          // memberIds: 0,
+          // genPreset: 0,
+          // genSettings: 0,
+          // adapter: 0,
+          // greeting: 0,
+          // scenario: 0,
+          // scenarioIds: 0,
+          // sampleChat: 0,
+          // overrides: 0,
         },
       },
     ])

@@ -15,14 +15,7 @@ import Select from '../../shared/Select'
 import PersonaAttributes, { getAttributeMap } from '../../shared/PersonaAttributes'
 import TextInput from '../../shared/TextInput'
 import { getStrictForm } from '../../shared/util'
-import {
-  characterStore,
-  chatStore,
-  presetStore,
-  scenarioStore,
-  settingStore,
-  userStore,
-} from '../../store'
+import { characterStore, chatStore, presetStore, scenarioStore, userStore } from '../../store'
 import CharacterSelect from '../../shared/CharacterSelect'
 import { AutoPreset, getPresetOptions } from '../../shared/adapter'
 import { defaultPresets, isDefaultPreset } from '/common/presets'
@@ -49,11 +42,11 @@ const CreateChatForm: Component<{
   const params = useParams()
   let ref: any
 
-  const cfg = settingStore()
   const nav = useNavigate()
   const scenarios = scenarioStore((s) => s.scenarios)
   const user = userStore((s) => ({ ...s.user }))
   const state = characterStore((s) => ({
+    char: s.editing,
     chars: (s.characters?.list || []).filter((c) => !isLoggedIn() || c.userId === user._id),
     loaded: s.characters.loaded,
   }))
@@ -70,10 +63,6 @@ const CreateChatForm: Component<{
     ]
   })
 
-  const char = createMemo(() =>
-    state.chars.find((ch) => ch._id === selectedId() || ch._id === props.charId)
-  )
-
   createEffect(() => {
     if (props.charId) return
     const curr = selectedId()
@@ -81,6 +70,15 @@ const CreateChatForm: Component<{
 
     if (!state.chars.length) return
     setSelected(state.chars[0]._id)
+  })
+
+  createEffect(() => {
+    const id = selectedId()
+    if (!id) return
+
+    if (state.char?._id === id) return
+
+    characterStore.getCharacter(id)
   })
 
   const setScenarioById = (scenarioId: string) => {
@@ -105,8 +103,7 @@ const CreateChatForm: Component<{
   })
 
   const onCreate = () => {
-    const character = char()
-    if (!character) return
+    if (!state.char) return
 
     const body = getStrictForm(ref, {
       name: 'string',
@@ -119,7 +116,7 @@ const CreateChatForm: Component<{
 
     const attributes = getAttributeMap(ref)
 
-    const characterId = character._id
+    const characterId = state.char._id
 
     const overrides = useOverrides()
       ? {
@@ -157,7 +154,7 @@ const CreateChatForm: Component<{
         Close
       </Button>
 
-      <Button onClick={onCreate} disabled={!char()}>
+      <Button onClick={onCreate} disabled={!state.char}>
         <Check />
         Create
       </Button>
@@ -170,7 +167,7 @@ const CreateChatForm: Component<{
 
   return (
     <>
-      <PageHeader title={`Create Chat with ${char()?.name}`} />
+      <PageHeader title={`Create Chat with ${state.char?.name}`} />
       <form ref={ref}>
         <div class="mb-2 text-sm">
           Optionally modify some of the conversation context. You can override other aspects of the
@@ -185,11 +182,12 @@ const CreateChatForm: Component<{
               <CharacterSelect
                 class="w-48"
                 items={state.chars}
-                value={char()}
+                value={state.char}
                 fieldName="character"
                 label="Character"
                 helperText="The conversation's main character"
                 onChange={(c) => setSelected(c?._id)}
+                ignoreActive
               />
             </Card>
           </Show>
@@ -252,23 +250,21 @@ const CreateChatForm: Component<{
 
           <Divider />
 
-          <Show when={cfg.flags.events}>
-            <Select
-              fieldName="scenarioId"
-              label="Scenario"
-              helperText="The scenario to use for this conversation"
-              items={currScenarios()}
-              onChange={(option) => setScenarioById(option.value)}
-              disabled={scenarios.length === 0}
-            />
-          </Show>
+          <Select
+            fieldName="scenarioId"
+            label="Scenario"
+            helperText="The scenario to use for this conversation"
+            items={currScenarios()}
+            onChange={(option) => setScenarioById(option.value)}
+            disabled={scenarios.length === 0}
+          />
 
           <Card>
             <TextInput
               isMultiline
               fieldName="greeting"
               label="Greeting"
-              value={char()?.greeting}
+              value={state.char?.greeting}
               class="text-xs"
               disabled={!useOverrides()}
             ></TextInput>
@@ -278,7 +274,7 @@ const CreateChatForm: Component<{
               isMultiline
               fieldName="scenario"
               label="Scenario"
-              value={char()?.scenario}
+              value={state.char?.scenario}
               class="text-xs"
               disabled={!useOverrides()}
             ></TextInput>
@@ -289,25 +285,25 @@ const CreateChatForm: Component<{
               isMultiline
               fieldName="sampleChat"
               label="Sample Chat"
-              value={char()?.sampleChat}
+              value={state.char?.sampleChat}
               class="text-xs"
               disabled={!useOverrides()}
             ></TextInput>
           </Card>
 
           <Card>
-            <Show when={char()?.persona.kind !== 'text'}>
+            <Show when={state.char?.persona.kind !== 'text'}>
               <Select
                 class="mb-2 text-sm"
                 fieldName="schema"
                 label="Persona"
                 items={options}
-                value={char()?.persona.kind || 'wpp'}
+                value={state.char?.persona.kind || 'wpp'}
                 disabled={!useOverrides()}
               />
             </Show>
 
-            <Show when={char()?.persona.kind === 'text'}>
+            <Show when={state.char?.persona.kind === 'text'}>
               <Select
                 class="mb-2 text-sm"
                 fieldName="schema"
@@ -319,18 +315,18 @@ const CreateChatForm: Component<{
             </Show>
 
             <div class="w-full text-sm">
-              <Show when={char()}>
+              <Show when={state.char}>
                 <PersonaAttributes
-                  value={char()!.persona.attributes}
+                  value={state.char?.persona.attributes}
                   hideLabel
-                  plainText={char()?.persona?.kind === 'text'}
+                  plainText={state.char?.persona?.kind === 'text'}
                   disabled={!useOverrides()}
                 />
               </Show>
-              <Show when={!char()}>
+              <Show when={!state.char}>
                 <For each={state.chars}>
                   {(item) => (
-                    <Show when={char()?._id === item._id}>
+                    <Show when={state.char?._id === item._id}>
                       <PersonaAttributes
                         value={item.persona.attributes}
                         hideLabel

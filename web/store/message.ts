@@ -18,6 +18,7 @@ import { defaultCulture } from '../shared/CultureCodes'
 import { createSpeech, pauseSpeech } from '../shared/Audio/speech'
 import { eventStore } from './event'
 import { findOne, replace } from '/common/util'
+import { sortAsc } from '/common/chat'
 
 type ChatId = string
 
@@ -54,6 +55,8 @@ export type MsgState = {
     text: string
   }
   queue: Array<{ chatId: string; message: string; mode: SendModes }>
+  cache: Record<string, AppSchema.ChatMessage>
+  branch?: AppSchema.ChatMessage[]
 
   /**
    * Ephemeral image messages
@@ -76,6 +79,7 @@ const initState: MsgState = {
   retrying: undefined,
   speaking: undefined,
   queue: [],
+  cache: {},
 }
 
 export const msgStore = createStore<MsgState>(
@@ -93,6 +97,29 @@ export const msgStore = createStore<MsgState>(
   events.on(EVENTS.init, (init) => {
     msgStore.setState({ imagesSaved: init.config.imagesSaved })
   })
+
+  events.on(EVENTS.clearMsgs, (chatId: string) => {
+    msgStore.setState({ activeChatId: chatId, activeCharId: undefined, msgs: [], cache: {} })
+  })
+
+  events.on(
+    EVENTS.receiveMsgs,
+    (data: { characterId: string; chatId: string; messages: AppSchema.ChatMessage[] }) => {
+      const { cache } = msgStore.getState()
+
+      const nextCache: MsgState['cache'] = data.messages.reduce(
+        (prev, curr) => Object.assign(prev, { [curr._id]: curr }),
+        { ...cache }
+      )
+
+      msgStore.setState({
+        activeCharId: data.characterId,
+        activeChatId: data.chatId,
+        msgs: data.messages.sort(sortAsc),
+        cache: nextCache,
+      })
+    }
+  )
 
   return {
     async *getNextMessages({ msgs, activeChatId, nextLoading }) {
@@ -176,7 +203,7 @@ export const msgStore = createStore<MsgState>(
 
       addMsgToRetries(replace)
 
-      const res = await msgsApi.generateResponseV2({ kind: 'continue' })
+      const res = await msgsApi.generateResponse({ kind: 'continue' })
 
       if (res.error) {
         toastStore.error(`(Continue) Generation request failed: ${res.error}`)
@@ -194,7 +221,7 @@ export const msgStore = createStore<MsgState>(
       }
       yield { partial: undefined, waiting: { chatId, mode: 'request', characterId } }
 
-      const res = await msgsApi.generateResponseV2({ kind: 'request', characterId })
+      const res = await msgsApi.generateResponse({ kind: 'request', characterId })
 
       if (res.error) {
         toastStore.error(`(Bot) Generation request failed: ${res.error}`)
@@ -232,7 +259,7 @@ export const msgStore = createStore<MsgState>(
 
       if (replace) addMsgToRetries(replace)
 
-      const res = await msgsApi.generateResponseV2({ kind: 'retry', messageId })
+      const res = await msgsApi.generateResponse({ kind: 'retry', messageId })
 
       if (res.error) {
         toastStore.error(`(Retry) Generation request failed: ${res.error}`)
@@ -283,19 +310,19 @@ export const msgStore = createStore<MsgState>(
       switch (mode) {
         case 'self':
         case 'retry':
-          res = await msgsApi.generateResponseV2({ kind: mode })
+          res = await msgsApi.generateResponse({ kind: mode })
           break
 
         case 'send':
         case 'send-event:world':
         case 'send-event:character':
         case 'send-event:hidden':
-          res = await msgsApi.generateResponseV2({ kind: mode, text: message })
+          res = await msgsApi.generateResponse({ kind: mode, text: message })
           break
 
         case 'ooc':
         case 'send-noreply':
-          res = await msgsApi.generateResponseV2({ kind: mode, text: message })
+          res = await msgsApi.generateResponse({ kind: mode, text: message })
           yield { partial: undefined, waiting: undefined }
           break
 

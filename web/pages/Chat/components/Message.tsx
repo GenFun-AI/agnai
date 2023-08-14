@@ -23,6 +23,7 @@ import {
   onCleanup,
   onMount,
   Show,
+  Signal,
   Switch,
 } from 'solid-js'
 import { BOT_REPLACE, SELF_REPLACE } from '../../../../common/prompt'
@@ -93,7 +94,7 @@ const Message: Component<MessageProps> = (props) => {
 const SingleMessage: Component<
   MessageProps & { original: AppSchema.ChatMessage; lastSplit: boolean }
 > = (props) => {
-  let ref: HTMLDivElement
+  let editRef: HTMLDivElement
   let avatarRef: any
   const user = userStore()
   const state = chatStore()
@@ -112,19 +113,29 @@ const SingleMessage: Component<
       setImg(`calc(${Math.min(avatarRef?.clientHeight, 10000)}px + 1em)`)
     })
   )
+  const opts = createSignal(false)
 
   const [ctx] = useAppContext()
 
   onMount(() => obs().observe(avatarRef))
   onCleanup(() => obs().disconnect())
 
-  const bgStyles = createMemo(() =>
-    props.msg.characterId && !props.msg.userId
-      ? ctx.bg.bot
-      : props.msg.ooc
-      ? ctx.bg.ooc
-      : ctx.bg.user
-  )
+  const bgStyles = createMemo(() => {
+    const base: JSX.CSSProperties =
+      props.msg.characterId && !props.msg.userId
+        ? ctx.bg.bot
+        : props.msg.ooc
+        ? ctx.bg.ooc
+        : ctx.bg.user
+
+    const styles = { ...base }
+    const show = opts[0]()
+    if (show) {
+      styles['backdrop-filter'] = ''
+    }
+
+    return styles
+  })
 
   const msgText = createMemo(() => {
     let msg = props.msg.msg
@@ -139,8 +150,8 @@ const SingleMessage: Component<
   })
 
   const saveEdit = () => {
-    if (!ref) return
-    msgStore.editMessage(props.msg._id, ref.innerText)
+    if (!editRef) return
+    msgStore.editMessage(props.msg._id, editRef.innerText)
     setEdit(false)
   }
 
@@ -148,10 +159,10 @@ const SingleMessage: Component<
 
   const startEdit = () => {
     setEdit(true)
-    if (ref) {
-      ref.innerText = props.original.msg
+    if (editRef) {
+      editRef.innerText = props.original.msg
     }
-    ref?.focus()
+    editRef?.focus()
   }
 
   const handleToShow = () => {
@@ -216,10 +227,10 @@ const SingleMessage: Component<
                   {props.avatars![props.msg.characterId!]}
                 </Match>
 
-                <Match when={!!ctx.botMap[props.msg.characterId!]}>
+                <Match when={!!ctx.allBots[props.msg.characterId!]}>
                   <CharacterAvatar
                     openable
-                    char={ctx.botMap[props.msg.characterId!]}
+                    char={ctx.allBots[props.msg.characterId!]}
                     format={format()}
                     bot={!props.msg.userId}
                     zoom={1.75}
@@ -229,7 +240,7 @@ const SingleMessage: Component<
                 <Match when={ctx.char && !!props.msg.characterId}>
                   <CharacterAvatar
                     char={
-                      ctx.botMap[props.msg.characterId!] ||
+                      ctx.activeMap[props.msg.characterId!] ||
                       ctx.tempMap[props.msg.characterId!] ||
                       ctx.char
                     }
@@ -255,7 +266,7 @@ const SingleMessage: Component<
                 class={`flex min-w-0 shrink flex-col overflow-hidden ${nameDateFlexDir()} items-start gap-1 ${nameDateAlignItems()} ${oocNameClass()}`}
               >
                 <b
-                  class={`text-900 mr-2 max-w-[160px] overflow-hidden  text-ellipsis whitespace-nowrap sm:max-w-[400px] ${nameClasses()}`}
+                  class={`chat-name text-900 mr-2 max-w-[160px] overflow-hidden  text-ellipsis whitespace-nowrap sm:max-w-[400px] ${nameClasses()}`}
                   // Necessary to override text-md and text-lg's line height, for proper alignment
                   style="line-height: 1;"
                   data-bot-name={isBot()}
@@ -264,9 +275,7 @@ const SingleMessage: Component<
                 >
                   <Switch>
                     <Match when={props.msg.characterId}>
-                      {ctx.botMap[props.msg.characterId!]?.name ||
-                        ctx.tempMap[props.msg.characterId!]?.name ||
-                        ctx.char?.name!}
+                      {ctx.allBots[props.msg.characterId!]?.name || ctx.char?.name!}
                     </Match>
                     <Match when={true}>{handleToShow()}</Match>
                   </Switch>
@@ -281,7 +290,7 @@ const SingleMessage: Component<
                 leading-none
                 ${visibilityClass()}
               `}
-                  data-bot-time={isBot}
+                  data-bot-time={isBot()}
                   data-user-time={isUser()}
                 >
                   {new Date(props.msg.createdAt).toLocaleString()}
@@ -323,15 +332,16 @@ const SingleMessage: Component<
                     last={props.last}
                     tts={!!props.tts}
                     partial={props.partial}
+                    show={opts}
                   />
                 </Match>
 
                 <Match when={edit()}>
-                  <div class="mr-4 flex items-center gap-4 text-sm">
+                  <div class="cancel-edit-btn mr-4 flex items-center gap-4 text-sm">
                     <div class="icon-button text-red-500" onClick={cancelEdit}>
                       <X size={22} />
                     </div>
-                    <div class="icon-button text-green-500" onClick={saveEdit}>
+                    <div class="confirm-edit-btn icon-button text-green-500" onClick={saveEdit}>
                       <Check size={22} />
                     </div>
                   </div>
@@ -364,7 +374,7 @@ const SingleMessage: Component<
                 </Match>
                 <Match when={props.retrying?._id === props.original._id && props.partial}>
                   <p
-                    class="rendered-markdown px-1"
+                    class="rendered-markdown streaming-markdown px-1"
                     data-bot-message={isBot()}
                     data-user-message={isUser()}
                     innerHTML={renderMessage(ctx, props.partial!, isUser(), 'partial')}
@@ -382,7 +392,7 @@ const SingleMessage: Component<
                       fallback={<div class="dot-flashing bg-[var(--hl-700)]"></div>}
                     >
                       <p
-                        class="rendered-markdown px-1"
+                        class="rendered-markdown streaming-markdown px-1"
                         data-bot-message={isBot()}
                         data-user-message={isUser()}
                         innerHTML={renderMessage(ctx, props.partial!, isUser(), 'partial')}
@@ -392,7 +402,11 @@ const SingleMessage: Component<
                 </Match>
                 <Match when={!edit() && !isImage()}>
                   <p
-                    class="rendered-markdown px-1"
+                    class={`rendered-markdown px-1 ${
+                      props.partial || props.msg._id === 'partial'
+                        ? 'streaming-markdown'
+                        : 'not-streaming'
+                    }`}
                     data-bot-message={isBot()}
                     data-user-message={isUser()}
                     innerHTML={renderMessage(ctx, msgText(), isUser(), props.original.adapter)}
@@ -415,7 +429,8 @@ const SingleMessage: Component<
                 </Match>
                 <Match when={edit()}>
                   <div
-                    ref={ref!}
+                    class="msg-edit-text-box"
+                    ref={editRef!}
                     contentEditable={true}
                     onKeyUp={(ev) => {
                       if (ev.key === 'Escape') cancelEdit()
@@ -438,7 +453,7 @@ export type SplitMessage = AppSchema.ChatMessage & { split?: boolean; handle?: s
 
 function splitMessage(ctx: ContextState, incoming: AppSchema.ChatMessage): SplitMessage[] {
   const charName =
-    (incoming.characterId ? ctx.botMap[incoming.characterId]?.name : ctx.char?.name) || ''
+    (incoming.characterId ? ctx.allBots[incoming.characterId]?.name : ctx.char?.name) || ''
 
   const CHARS = [`{{char}}:`]
   if (charName) CHARS.push(`${charName}:`)
@@ -525,14 +540,22 @@ const MessageOptions: Component<{
   lastSplit: boolean
   last?: boolean
   partial?: string
+  show: Signal<boolean>
   onRemove: () => void
 }> = (props) => {
+  // const wrap = (fn: Function) => {
+  //   return () => {
+  //     props.show[1](false)
+  //     fn()
+  //   }
+  // }
+
   return (
     <div class="flex items-center gap-3 text-sm">
       <Show when={props.chatEditing && props.msg.characterId && props.msg.adapter !== 'image'}>
         <div
           onClick={() => !props.partial && chatStore.showPrompt(props.original)}
-          class="icon-button"
+          class="icon-button prompt-btn"
           classList={{ disabled: !!props.partial }}
         >
           <Terminal size={16} />
@@ -540,13 +563,13 @@ const MessageOptions: Component<{
       </Show>
 
       <Show when={props.chatEditing && props.original.adapter !== 'image'}>
-        <div class="icon-button" onClick={props.startEdit}>
+        <div class="edit-btn icon-button" onClick={props.startEdit}>
           <Pencil size={18} />
         </div>
       </Show>
 
       <Show when={props.chatEditing}>
-        <div class="icon-button" onClick={props.onRemove}>
+        <div class="delete-btn icon-button" onClick={props.onRemove}>
           <Trash size={18} />
         </div>
       </Show>
@@ -558,7 +581,7 @@ const MessageOptions: Component<{
         }
       >
         <div
-          class="icon-button"
+          class="icon-button refresh-btn"
           onClick={() => !props.partial && retryMessage(props.original, props.msg)}
         >
           <RefreshCw size={18} />
@@ -573,6 +596,33 @@ const MessageOptions: Component<{
           <RefreshCw size={18} />
         </div>
       </Show>
+
+      {/* <div class="icon-button" onClick={() => props.show[1](true)}>
+        <MoreHorizontal />
+      </div>
+
+      <DropMenu show={props.show[0]()} close={() => props.show[1](false)} horz="left">
+        <div class="flex gap-1 p-1 text-sm">
+          <Show when={props.chatEditing && props.msg.characterId && props.msg.adapter !== 'image'}>
+            <Button size="sm" schema="secondary">
+              <GitFork size={18} />
+            </Button>
+
+            <Button
+              size="sm"
+              schema="secondary"
+              onClick={wrap(() => !props.partial && chatStore.showPrompt(props.original))}
+              disabled={!!props.partial}
+            >
+              <Terminal size={18} />
+            </Button>
+          </Show>
+
+          <Button size="sm" schema="secondary" onClick={wrap(props.onRemove)}>
+            <Trash size={18} />
+          </Button>
+        </div>
+      </DropMenu> */}
     </div>
   )
 }

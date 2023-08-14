@@ -7,6 +7,7 @@ import { AppSchema } from '../../common/types/schema'
 import { NOVEL_MODELS } from '/common/adapters'
 import { needleToSSE } from './stream'
 import { AppLog } from '../logger'
+import { getEncoder } from '../tokenize'
 
 export const NOVEL_BASEURL = `https://api.novelai.net`
 const novelUrl = (model: string) => `${getBaseUrl(model)}/ai/generate`
@@ -21,6 +22,8 @@ const streamUrl = (model: string) => `${getBaseUrl(model)}/ai/generate-stream`
  * 4. Top A Sampling
  * 5. Typical Sampling
  * 6. CFG Scale
+ * 7. Top G
+ * 8. Mirostat
  */
 
 const statuses: Record<number, string> = {
@@ -61,7 +64,7 @@ export const handleNovel: ModelAdapter = async function* ({
     return
   }
 
-  const model = opts.gen.novelModel || user.novelModel || NOVEL_MODELS.euterpe
+  const model = opts.gen.novelModel || user.novelModel || NOVEL_MODELS.clio_v1
 
   const processedPrompt = processNovelAIPrompt(prompt)
 
@@ -75,15 +78,68 @@ export const handleNovel: ModelAdapter = async function* ({
     body.parameters.prefix = 'special_instruct'
     body.parameters.phrase_rep_pen = 'aggressive'
   } else {
-    body.parameters.stop_sequences = NEW_PARAMS[model] ? [[49287], [43145], [19438]] : [[27]]
+    const { encode } = getEncoder('novel', model)
+    const stops: Array<number[]> = []
+    const biases: any[] = [
+      // {
+      //   bias: -0.1,
+      //   ensure_sequence_finish: false,
+      //   generate_once: false,
+      //   sequence: encode('***'),
+      // },
+      // {
+      //   bias: -0.1,
+      //   ensure_sequence_finish: false,
+      //   generate_once: false,
+      //   sequence: encode('⁂'),
+      // },
+    ]
+
+    const added = new Set<string>()
+
+    for (const [, char] of Object.entries(opts.characters || {})) {
+      if (added.has(char._id) || char._id === opts.replyAs?._id) continue
+      added.add(char._id)
+      const tokens = encode(`\n${char.name}:`)
+      stops.push(tokens)
+    }
+
+    for (const member of members) {
+      if (added.has(member._id)) continue
+      added.add(member._id)
+      const tokens = encode(`\n${member.handle}:`)
+      stops.push(tokens)
+    }
+
+    body.parameters.logit_bias_exp = biases
+    body.parameters.stop_sequences = stops
   }
 
-  yield { prompt: processedPrompt }
+  if (opts.gen.order && !opts.gen.disabledSamplers) {
+    body.parameters.order = opts.gen.order
+  }
 
-  const endTokens = ['***', 'Scenario:', '----', '⁂', '***']
+  if (opts.gen.order && opts.gen.disabledSamplers) {
+    body.parameters.order = opts.gen.order.filter(
+      (sampler) => !opts.gen.disabledSamplers?.includes(sampler)
+    )
+  }
+
+  yield { prompt: body.input }
+
+  const endTokens = ['***', 'Scenario:', '----', '⁂']
 
   log.debug(
-    { ...body, input: null, parameters: { ...body.parameters, bad_words_ids: null } },
+    {
+      ...body,
+      input: null,
+      parameters: {
+        ...body.parameters,
+        bad_words_ids: null,
+        repetition_penalty_whitelist: null,
+        stop_sequences: null,
+      },
+    },
     'NovelAI payload'
   )
   log.debug(`Prompt:\n${body.input}`)
@@ -126,6 +182,8 @@ export const handleNovel: ModelAdapter = async function* ({
 }
 
 function getModernParams(gen: Partial<AppSchema.GenSettings>) {
+  const module = gen.temporary?.module || 'vanilla'
+
   const payload: any = {
     temperature: gen.temp,
     max_length: gen.maxTokens,
@@ -133,6 +191,7 @@ function getModernParams(gen: Partial<AppSchema.GenSettings>) {
     top_k: gen.topK,
     top_p: gen.topP,
     top_a: gen.topA,
+    typical_p: gen.typicalP,
     tail_free_sampling: gen.tailFreeSampling,
     repetition_penalty: gen.repetitionPenalty,
     repetition_penalty_range: gen.repetitionPenaltyRange,
@@ -143,10 +202,14 @@ function getModernParams(gen: Partial<AppSchema.GenSettings>) {
     use_cache: false,
     use_string: true,
     return_full_text: false,
-    prefix: 'special_instruct',
+    prefix: module,
+    phrase_rep_pen: 'aggressive',
     order: gen.order,
     bad_words_ids: clioBadWordsId,
     repetition_penalty_whitelist: penaltyWhitelist,
+    top_g: gen.topG,
+    mirostat_tau: gen.mirostatTau,
+    mirotsat_lr: gen.mirostatLR,
   }
 
   if (gen.cfgScale) {

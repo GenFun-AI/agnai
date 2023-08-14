@@ -15,6 +15,7 @@ import { FullSprite } from './sprite'
 
 export type AllDoc =
   | AppSchema.Chat
+  | AppSchema.ChatTree
   | AppSchema.ChatMessage
   | AppSchema.Character
   | AppSchema.User
@@ -30,6 +31,11 @@ export type AllDoc =
 export type OAuthScope = keyof typeof oauthScopes
 
 export const oauthScopes = ['characters', 'chats', 'presets', 'profile'] as const
+
+export type ChatBranch = {
+  parent: string
+  children: { [key: string]: number }
+}
 
 export namespace AppSchema {
   export interface AppConfig {
@@ -89,7 +95,7 @@ export namespace AppSchema {
     useLocalPipeline: boolean
 
     koboldUrl: string
-    thirdPartyFormat: 'kobold' | 'openai' | 'claude'
+    thirdPartyFormat: 'kobold' | 'openai' | 'claude' | 'ooba'
     thirdPartyPassword: string
     thirdPartyPasswordSet?: boolean
     oobaUrl: string
@@ -148,6 +154,15 @@ export namespace AppSchema {
     enabled: boolean
   }
 
+  export interface ChatTree {
+    _id: string
+    kind: 'chat-tree'
+    chatId: string
+    userId: string
+
+    tree: Record<string, ChatBranch>
+  }
+
   export interface Chat {
     _id: string
     kind: 'chat'
@@ -178,6 +193,8 @@ export namespace AppSchema {
 
     scenarioIds?: string[]
     scenarioStates?: string[]
+
+    treeLeafId?: string
   }
 
   export interface ChatMember {
@@ -198,8 +215,6 @@ export namespace AppSchema {
     characterId?: string
     userId?: string
 
-    // Only chat owners can rate messages for now
-    rating?: 'y' | 'n' | 'none'
     adapter?: string
     imagePrompt?: string
     actions?: ChatAction[]
@@ -312,12 +327,18 @@ export namespace AppSchema {
     topP: number
     topK: number
     topA: number
+    topG?: number
+    mirostatTau?: number
+    mirostatLR?: number
     tailFreeSampling: number
     encoderRepitionPenalty?: number
     penaltyAlpha?: number
     addBosToken?: boolean
     banEosToken?: boolean
+
     order?: number[]
+    disabledSamplers?: number[]
+
     skipSpecialTokens?: boolean
     cfgScale?: number
     cfgOppose?: string
@@ -327,6 +348,7 @@ export namespace AppSchema {
     gaslight?: string
     useGaslight?: boolean
     ultimeJailbreak?: string
+    prefill?: string
     ignoreCharacterUjb?: boolean
     antiBond?: boolean
 
@@ -338,7 +360,7 @@ export namespace AppSchema {
     openRouterModel?: OpenRouterModel
 
     thirdPartyUrl?: string
-    thirdPartyFormat?: 'kobold' | 'openai' | 'claude'
+    thirdPartyFormat?: 'kobold' | 'openai' | 'claude' | 'ooba'
 
     replicateModelName?: string
     replicateModelType?: string
@@ -357,6 +379,8 @@ export namespace AppSchema {
     images?: {
       adapter: string
     }
+
+    temporary?: Record<string, any>
   }
 
   export interface MemoryBook {

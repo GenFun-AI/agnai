@@ -3,7 +3,7 @@ import { assertValid } from '/common/valid'
 import { store } from '../db'
 import { isAdmin, loggedIn } from './auth'
 import { handle } from './wrap'
-import { getLiveCounts } from './ws/bus'
+import { getLiveCounts, sendAll } from './ws/bus'
 
 const router = Router()
 
@@ -27,6 +27,13 @@ const getUserInfo = handle(async ({ params }) => {
   return info
 })
 
+const notifyAll = handle(async ({ body }) => {
+  assertValid({ message: 'string' }, body)
+  sendAll({ type: 'admin-notification', message: body.message })
+
+  return { success: true }
+})
+
 const getMetrics = handle(async () => {
   const { entries: counts, maxLiveCount } = getLiveCounts()
   const metrics = await store.users.getMetrics()
@@ -46,5 +53,6 @@ router.post('/users', searchUsers)
 router.get('/metrics', getMetrics)
 router.get('/users/:id/info', getUserInfo)
 router.post('/user/password', setUserPassword)
+router.post('/notify', notifyAll)
 
 export default router

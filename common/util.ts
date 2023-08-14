@@ -16,6 +16,18 @@ export function toArray<T>(values?: T | T[]): T[] {
   return [values]
 }
 
+export function distinct<T extends { _id: string }>(values: T[]) {
+  const set = new Set<string>()
+  const next: T[] = []
+
+  for (const item of values) {
+    if (set.has(item._id)) continue
+    next.push(item)
+    set.add(item._id)
+  }
+
+  return next
+}
 export function wait(secs: number) {
   return new Promise((res) => setTimeout(res, secs * 1000))
 }
@@ -159,4 +171,43 @@ export function getBotName(
   }
 
   return char.name
+}
+
+const DONE = Symbol('EventGeneratorDone')
+
+export function eventGenerator<T = any>() {
+  let done = false
+  let resolve = (_value: any) => {}
+  let defer = new Promise((r) => {
+    resolve = r
+  })
+
+  const reset = () => {
+    defer = new Promise((r) => {
+      resolve = r
+    })
+  }
+
+  const stream = (async function* () {
+    while (!done) {
+      const result = await defer
+      if (result === DONE) {
+        return
+      }
+
+      yield result
+    }
+  })()
+
+  return {
+    stream,
+    push: (value: T) => {
+      resolve(value)
+      reset()
+    },
+    done: () => {
+      resolve(DONE)
+      done = true
+    },
+  }
 }

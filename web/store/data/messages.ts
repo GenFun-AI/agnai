@@ -22,6 +22,7 @@ import { settingStore } from '../settings'
 import { TemplateOpts, parseTemplate } from '/common/template-parser'
 import { replace } from '/common/util'
 import { toMap } from '/web/shared/util'
+import { getServiceTempConfig } from '/web/shared/adapter'
 
 export type PromptEntities = {
   chat: AppSchema.Chat
@@ -45,7 +46,7 @@ export const msgsApi = {
   editMessageProps,
   getMessages,
   getPromptEntities,
-  generateResponseV2,
+  generateResponse,
   deleteMessages,
   basicInference,
   createActiveChatPrompt,
@@ -250,8 +251,7 @@ export type GenerateOpts =
   | { kind: 'self' }
   | { kind: 'summary' }
 
-export async function generateResponseV2(opts: GenerateOpts) {
-  const { ui } = userStore.getState()
+export async function generateResponse(opts: GenerateOpts) {
   const { active } = chatStore.getState()
 
   if (!active) {
@@ -264,6 +264,7 @@ export async function generateResponseV2(opts: GenerateOpts) {
 
   const activePrompt = await createActiveChatPrompt(opts).catch((err) => ({ err }))
   if ('err' in activePrompt) {
+    console.error(activePrompt.err)
     return localApi.error(activePrompt.err.message || activePrompt.err)
   }
 
@@ -280,11 +281,6 @@ export async function generateResponseV2(opts: GenerateOpts) {
         ' and '
       )} did not fit in prompt. Check your Preset -> Memory Embed context limits.`
     )
-  }
-
-  if (ui?.logPromptsToBrowserConsole) {
-    console.log(`=== Sending the following prompt: ===`)
-    console.log(`${prompt.template}`)
   }
 
   const request: GenerateRequestV2 = {
@@ -489,6 +485,16 @@ async function getGenerateProps(
   active: NonNullable<ChatState['active']>
 ): Promise<GenerateProps> {
   const entities = await getPromptEntities()
+
+  const temporary = getServiceTempConfig(entities.settings.service)
+  if (!entities.settings.temporary) {
+    entities.settings.temporary = {}
+  }
+
+  for (const temp of temporary) {
+    entities.settings.temporary[temp.field] = temp.value
+  }
+
   const [secondLastMsg, lastMsg] = entities.messages.slice(-2)
   const lastCharMsg = entities.messages.reduceRight<AppSchema.ChatMessage | void>((prev, curr) => {
     if (prev) return prev
@@ -671,7 +677,7 @@ async function getGuestEntities() {
 
   const {
     impersonating,
-    characters: { list, map },
+    chatChars: { list, map },
   } = getStore('character').getState()
 
   const characters = getBotsForChat(chat, char, map)
@@ -715,7 +721,7 @@ function getAuthedPromptEntities() {
 
   const {
     impersonating,
-    characters: { list, map },
+    chatChars: { list, map },
   } = getStore('character').getState()
 
   const characters = getBotsForChat(chat, char, map)

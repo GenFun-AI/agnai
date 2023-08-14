@@ -11,7 +11,7 @@ import { publishMany } from '../ws/handle'
 import { runGuidance } from '/common/guidance/guidance-parser'
 import { cyoaTemplate } from '/common/templates'
 import { fillPromptWithLines } from '/common/prompt'
-import { getEncoder } from '/srv/tokenize'
+import { getTokenCounter } from '/srv/tokenize'
 
 type GenRequest = UnwrapBody<typeof genValidator>
 
@@ -22,6 +22,7 @@ const sendValidator = {
 } as const
 
 const genValidator = {
+  parent: 'string?',
   kind: [
     'send',
     'send-event:world',
@@ -166,6 +167,14 @@ export const generateMessageV2 = handle(async (req, res) => {
       event: undefined,
     })
 
+    if (body.parent) {
+      await store.tree.assignMessageParent({
+        chatId: chat._id,
+        parentId: body.parent,
+        messageId: userMsg._id,
+      })
+    }
+
     sendMany(members, { type: 'message-created', msg: userMsg, chatId })
   } else if (body.kind.startsWith('send-event:')) {
     userMsg = await store.msgs.createChatMessage({
@@ -284,7 +293,7 @@ export const generateMessageV2 = handle(async (req, res) => {
 
   if (chat.mode === 'adventure') {
     const lines = fillPromptWithLines(
-      getEncoder('main'),
+      getTokenCounter('main'),
       1024,
       '',
       body.lines.concat(`${body.replyAs.name}: ${responseText}`)
@@ -343,6 +352,15 @@ export const generateMessageV2 = handle(async (req, res) => {
         meta,
         event: undefined,
       })
+
+      if (body.parent && userMsg) {
+        await store.tree.assignMessageParent({
+          chatId: chat._id,
+          parentId: userMsg._id,
+          messageId: msg._id,
+        })
+      }
+
       sendMany(members, {
         type: 'message-created',
         requestId,

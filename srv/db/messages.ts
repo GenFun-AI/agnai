@@ -2,6 +2,8 @@ import { v4 } from 'uuid'
 import { db } from './client'
 import { AppSchema } from '../../common/types/schema'
 import { now } from './util'
+import { getChatBranchIds } from '/common/chat'
+import { store } from '.'
 
 const PAGE_SIZE = 100
 
@@ -38,7 +40,6 @@ export async function createChatMessage(creating: NewMessage, ephemeral?: boolea
   const doc: AppSchema.ChatMessage = {
     _id: creating._id || v4(),
     kind: 'chat-message',
-    rating: 'none',
     chatId,
     characterId,
     userId: senderId,
@@ -137,6 +138,24 @@ export async function getMessages(chatId: string, before?: string) {
   }
 
   return docs.slice(1)
+}
+
+export async function getChatMessages(chat: AppSchema.Chat) {
+  if (!chat.treeLeafId) return getMessages(chat._id)
+  const tree = await store.chats.getChatTree(chat._id)
+  if (!tree) return getMessages(chat._id)
+
+  return getChatTreeMessages(tree, chat.treeLeafId)
+}
+
+export async function getChatTreeMessages(tree: AppSchema.ChatTree, leafId: string) {
+  const ids = getChatBranchIds(tree, leafId)
+  const docs = await db('chat-message')
+    .find({ kind: 'chat-message', chatId: tree.chatId, _id: { $in: ids } })
+    .sort({ createdAt: 1 })
+    .toArray()
+
+  return docs
 }
 
 /**

@@ -14,7 +14,7 @@ import {
 } from '../../common/prompt'
 import { AppSchema } from '../../common/types/schema'
 import { AppLog } from '../logger'
-import { getEncoder } from '../tokenize'
+import { getTokenCounter } from '../tokenize'
 import { publishOne } from '../api/ws/handle'
 
 const baseUrl = `https://api.anthropic.com/v1/complete`
@@ -38,7 +38,7 @@ type CompletionGenerator = (
 ) => AsyncGenerator<{ error: string } | { token: string }, ClaudeCompletion | undefined>
 
 // There's no tokenizer for Claude, we use OpenAI's as an estimation
-const encoder = () => getEncoder('claude', '')
+const encoder = () => getTokenCounter('claude', '')
 
 export const handleClaude: ModelAdapter = async function* (opts) {
   const { members, user, log, guest, gen, isThirdParty } = opts
@@ -62,7 +62,7 @@ export const handleClaude: ModelAdapter = async function* (opts) {
     stream: gen.streamResponse ?? defaultPresets.claude.streamResponse,
   }
 
-  if (opts.kind === 'plain' || opts.kind === 'summary' || true) {
+  if (opts.kind === 'plain') {
     payload.stream = false
   }
 
@@ -259,10 +259,14 @@ function createClaudePrompt(opts: AdapterProps): string {
     characters: opts.characters || {},
   })
 
+  const prefill = opts.gen.prefill ? opts.gen.prefill + '\n' : ''
+  const prefillCost = encoder()(prefill)
+
   const maxBudget =
     maxContextLength -
     maxResponseTokens -
     gaslightCost -
+    prefillCost -
     encoder()(ujb) -
     encoder()(opts.replyAs.name + ':')
 
@@ -301,7 +305,9 @@ function createClaudePrompt(opts: AdapterProps): string {
       : ''
 
   // <https://console.anthropic.com/docs/prompt-design#what-is-a-prompt>
-  return messages.join('\n\n') + continueAddon + '\n\n' + 'Assistant: ' + replyAs.name + ':'
+  return (
+    messages.join('\n\n') + continueAddon + '\n\n' + 'Assistant: ' + prefill + replyAs.name + ':'
+  )
 }
 
 type LineType = 'system' | 'char' | 'user' | 'example'

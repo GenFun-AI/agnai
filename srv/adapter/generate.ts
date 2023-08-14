@@ -22,11 +22,12 @@ import { handleScale } from './scale'
 import { configure } from '../../common/horde-gen'
 import needle from 'needle'
 import { HORDE_GUEST_KEY } from '../api/horde'
-import { getEncoder } from '../tokenize'
+import { getTokenCounter } from '../tokenize'
 import { handleGooseAI } from './goose'
 import { handleReplicate } from './replicate'
 import { getAppConfig } from '../api/settings'
 import { handleOpenRouter } from './openrouter'
+import { handleMancer } from './mancer'
 
 let version = ''
 
@@ -59,6 +60,7 @@ const handlers: { [key in AIAdapter]: ModelAdapter } = {
   goose: handleGooseAI,
   replicate: handleReplicate,
   openrouter: handleOpenRouter,
+  mancer: handleMancer,
 }
 
 type InferenceRequest = {
@@ -74,6 +76,7 @@ type InferenceRequest = {
   log: AppLog
   retries?: number
   maxTokens?: number
+  temp?: number
 }
 
 export async function inferenceAsync(opts: InferenceRequest) {
@@ -142,7 +145,7 @@ export async function createInferenceStream(opts: InferenceRequest) {
 
   settings.maxTokens = opts.maxTokens ? opts.maxTokens : 1024
   settings.streamResponse = false
-  settings.temp = 0.5
+  settings.temp = opts.temp ?? 0.5
 
   if (settings.service === 'openai') {
     settings.topP = 1
@@ -188,8 +191,10 @@ export async function createTextStreamV2(
    */
   if (!guestSocketId) {
     const entities = await getResponseEntities(opts.chat, opts.sender.userId, opts.settings)
+    entities.gen.temporary = opts.settings?.temporary
+
     const { adapter, model } = getAdapter(opts.chat, entities.user, entities.gen)
-    const encoder = getEncoder(adapter, model)
+    const encoder = getTokenCounter(adapter, model)
     opts.parts = getPromptParts(
       {
         ...entities,
@@ -229,7 +234,7 @@ export async function createTextStreamV2(
   }
 
   const { adapter, isThirdParty, model } = getAdapter(opts.chat, opts.user, opts.settings)
-  const encoder = getEncoder(adapter, model)
+  const encoder = getTokenCounter(adapter, model)
   const handler = handlers[adapter]
 
   const prompt = createPromptWithParts(opts, opts.parts, opts.lines, encoder)

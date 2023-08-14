@@ -43,7 +43,6 @@ import Slot from './shared/Slot'
 import { useEffect, useResizeObserver, useWindowSize } from './shared/hooks'
 import WizardIcon from './icons/WizardIcon'
 import Badge from './shared/Badge'
-import Button from './shared/Button'
 import { pipelineApi } from './store/data/pipeline'
 
 const MobileNavHeader = () => (
@@ -70,6 +69,12 @@ const Navigation: Component = () => {
   const user = userStore()
   const chat = chatStore()
   const size = useWindowSize()
+
+  createEffect(() => {
+    if (!state.overlay && state.showMenu) {
+      settingStore.menu()
+    }
+  })
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -146,9 +151,7 @@ const UserNavigation: Component = () => {
 
       <CharacterLink />
 
-      <Item href="/chats">
-        <MessageCircle fill="var(--bg-100)" /> Chats
-      </Item>
+      <ChatLink />
 
       <Library />
 
@@ -156,9 +159,16 @@ const UserNavigation: Component = () => {
         <MailPlus /> Invites <InviteBadge />
       </Item>
 
-      <Item href="/presets">
-        <Sliders /> Presets
-      </Item>
+      <MultiItem>
+        <Item href="/presets">
+          <Sliders /> Presets
+        </Item>
+        <EndItem>
+          <A class="icon-button" href="/presets/new">
+            <Plus />
+          </A>
+        </EndItem>
+      </MultiItem>
 
       <Show when={user.user?.admin}>
         <Item href="/admin/metrics">
@@ -192,7 +202,7 @@ const UserNavigation: Component = () => {
 
         <Item
           onClick={() => {
-            settingStore.closeMenu()
+            if (menu.showMenu) settingStore.closeMenu()
             toastStore.modal(true)
           }}
         >
@@ -249,15 +259,20 @@ const GuestNavigation: Component = () => {
           </Item>
         </Show>
 
-        <Item href="/chats">
-          <MessageCircle /> Chats
-        </Item>
+        <ChatLink />
 
         <Library />
 
-        <Item href="/presets">
-          <Sliders /> Presets
-        </Item>
+        <MultiItem>
+          <Item href="/presets">
+            <Sliders /> Presets
+          </Item>
+          <EndItem>
+            <A class="icon-button" href="/presets/new">
+              <Plus />
+            </A>
+          </EndItem>
+        </MultiItem>
       </Show>
 
       <div class="flex flex-wrap justify-center gap-[2px] text-sm">
@@ -287,7 +302,7 @@ const GuestNavigation: Component = () => {
 
         <Item
           onClick={() => {
-            settingStore.closeMenu()
+            if (menu.showMenu) settingStore.closeMenu()
             toastStore.modal(true)
           }}
         >
@@ -316,6 +331,7 @@ const GuestNavigation: Component = () => {
 const Item: Component<{ href?: string; children: string | JSX.Element; onClick?: () => void }> = (
   props
 ) => {
+  const menu = settingStore()
   return (
     <>
       <Show when={!props.href}>
@@ -323,7 +339,7 @@ const Item: Component<{ href?: string; children: string | JSX.Element; onClick?:
           class="flex min-h-[2.5rem] cursor-pointer items-center justify-start gap-4 rounded-lg px-2 hover:bg-[var(--bg-700)] sm:min-h-[2.5rem]"
           onClick={() => {
             if (props.onClick) props.onClick()
-            else settingStore.closeMenu()
+            else if (menu.showMenu) settingStore.closeMenu()
           }}
         >
           {props.children}
@@ -333,7 +349,9 @@ const Item: Component<{ href?: string; children: string | JSX.Element; onClick?:
         <A
           href={props.href!}
           class="flex min-h-[2.5rem] items-center justify-start gap-4 rounded-lg px-2 hover:bg-[var(--bg-700)] sm:min-h-[2.5rem]"
-          onClick={settingStore.closeMenu}
+          onClick={() => {
+            if (menu.showMenu) settingStore.closeMenu()
+          }}
         >
           {props.children}
         </A>
@@ -348,7 +366,9 @@ const InviteBadge: Component = () => {
   return (
     <>
       <Show when={inv.invites.length}>
-        <span class={`flex h-6 items-center justify-center rounded-xl bg-red-900 px-2 text-xs`}>
+        <span
+          class={`flex h-6 items-center justify-center rounded-xl bg-red-600 px-2 text-xs text-white`}
+        >
           {inv.invites.length}
         </span>
       </Show>
@@ -390,34 +410,50 @@ const Library = () => {
 
 const CharacterLink = () => {
   return (
-    <div class="grid w-full gap-2" style={{ 'grid-template-columns': '1fr 30px' }}>
+    <MultiItem>
       <Item href="/character/list">
         <WizardIcon /> Characters
       </Item>
-      <div class="flex items-center">
-        <A class="link" href="/editor">
+      <EndItem>
+        <A class="icon-button" href="/editor">
           <Plus />
         </A>
-      </div>
-    </div>
+      </EndItem>
+    </MultiItem>
+  )
+}
+
+const ChatLink = () => {
+  return (
+    <MultiItem>
+      <Item href="/chats">
+        <MessageCircle fill="var(--bg-100)" /> Chats
+      </Item>
+      <EndItem>
+        <A class="icon-button" href="/chats/create">
+          <Plus />
+        </A>
+      </EndItem>
+    </MultiItem>
   )
 }
 
 const UserProfile = () => {
   const chars = characterStore()
   const user = userStore()
+  const menu = settingStore()
 
   return (
     <>
       <div
-        class="grid w-full items-center justify-between gap-2 pr-2"
+        class="grid w-full items-center justify-between gap-2"
         style={{
           'grid-template-columns': '1fr 30px',
         }}
       >
         <Item
           onClick={() => {
-            settingStore.closeMenu()
+            if (menu.showMenu) settingStore.closeMenu()
             userStore.modal(true)
           }}
         >
@@ -438,20 +474,32 @@ const UserProfile = () => {
           </Switch>
           <span>{chars.impersonating?.name || user.profile?.handle}</span>
         </Item>
-        <div class="flex justify-center">
-          <Button
-            schema="bordered"
+        <div class="flex items-center">
+          <a
+            class="icon-button"
             onClick={() => {
               settingStore.toggleImpersonate(true)
-              settingStore.closeMenu()
+              if (menu.showMenu) settingStore.closeMenu()
             }}
           >
-            <VenetianMask size={20} />
-          </Button>
+            <VenetianMask />
+          </a>
         </div>
       </div>
     </>
   )
+}
+
+const MultiItem: Component<{ children: any }> = (props) => {
+  return (
+    <div class="grid w-full gap-2" style={{ 'grid-template-columns': '1fr 30px' }}>
+      {props.children}
+    </div>
+  )
+}
+
+const EndItem: Component<{ children: any }> = (props) => {
+  return <div class="flex items-center">{props.children}</div>
 }
 
 const Slots: Component = (props) => {

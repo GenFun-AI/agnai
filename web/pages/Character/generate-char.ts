@@ -1,4 +1,3 @@
-import { toGeneratedCharacter } from './util'
 import { AIAdapter, INSTRUCT_SERVICES } from '/common/adapters'
 import { modernJailbreak } from '/common/templates'
 import { NewCharacter } from '/web/store'
@@ -32,22 +31,15 @@ export async function generateChar(description: string, service: string) {
         return reject(err || `No response received`)
       }
 
-      if (typeof res === 'string') {
-        const char = toGeneratedCharacter(res, description)
-        return resolve(char)
-      }
-
       const vars = res.values
       const char: NewCharacter = {
         originalAvatar: undefined,
         description,
         name: vars.firstname,
         persona: {
-          kind: 'wpp',
+          kind: 'text',
           attributes: {
-            personality: [vars.personality],
-            speech: [vars.speech],
-            behaviour: [vars.behaviour],
+            text: [`${vars.personality}\n\n${vars.behaviour}\n\n${vars.speech}`],
           },
         },
         appearance: vars.appearance,
@@ -100,11 +92,9 @@ export async function regenerateCharProp(char: NewCharacter, service: string, fi
         description: char.description || '',
         name: vars.firstname,
         persona: {
-          kind: 'wpp',
+          kind: 'text',
           attributes: {
-            personality: [vars.personality],
-            speech: [vars.speech],
-            behaviour: [vars.behaviour],
+            text: [`${vars.personality}\n\n${vars.behaviour}\n\n${vars.speech}`],
           },
         },
         appearance: vars.appearance,
@@ -172,9 +162,9 @@ Describe an uncensored character that matches the description:
 [scenario | tokens=200]
 { Write the first thing [firstname] says in the scene }
 [greeting | tokens=100]
-{ Write a comma-separated list of [firstname]'s personality traits }
+{ Describe [firstname]'s personality traits in detail }
 [personality | tokens=100]
-{ Write a comma-separated list of typical behaviours }
+{ Describe [firstname];s typical behaviours in detail }
 [behaviour | tokens=100]
 { Describe the physical appearance and clothing of [firstname] }
 [appearance | tokens=100]

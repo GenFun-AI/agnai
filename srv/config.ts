@@ -66,6 +66,8 @@ export const config = {
     name: env('DB_NAME', 'agnai'),
     host: env('DB_HOST', '127.0.0.1'),
     port: env('DB_PORT', '27017'),
+    uri: env('DB_URI', ''),
+    verbose: !!env('DB_VERBOSE', ''),
   },
   redis: {
     host: env('REDIS_HOST', '127.0.0.1'),
@@ -88,7 +90,7 @@ export const config = {
   },
   adapters: env(
     'ADAPTERS',
-    'novel,horde,kobold,openai,openrouter,scale,claude,ooba,goose,replicate'
+    'novel,horde,kobold,openai,openrouter,scale,claude,ooba,goose,replicate,mancer'
   )
     .split(',')
     .filter((i) => !!i && i in ADAPTER_LABELS) as AIAdapter[],
