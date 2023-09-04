@@ -102,7 +102,7 @@ const BooksTab: Component = (props) => {
           <>
             {' '}
             <a
-              href="https://github.com/agnaistic/agnai/blob/dev/instructions/memory.md"
+              href="https://github.com/GenFun-AI/agnai/blob/main/instructions/memory.md"
               target="_blank"
               class="link"
             >

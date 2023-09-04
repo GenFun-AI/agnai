@@ -3,7 +3,7 @@ import PageHeader from '../../shared/PageHeader'
 import { markdown } from '../../shared/markdown'
 
 const text = `
-We at Agnaistic (together with our affiliates, "we", "our" or "us") respect your privacy and are strongly committed to keeping secure any information we obtain from you or about you. This Privacy Policy describes our practices with respect to Personal Information we collect from or about you when you use our website and services (collectively, "Services"). Our use of that data is governed by our customer agreements covering access to and use of those offerings.
+We at Murmur (together with our affiliates, "we", "our" or "us") respect your privacy and are strongly committed to keeping secure any information we obtain from you or about you. This Privacy Policy describes our practices with respect to Personal Information we collect from or about you when you use our website and services (collectively, "Services"). Our use of that data is governed by our customer agreements covering access to and use of those offerings.
 
 ## 1. Personal information we collect
 
@@ -52,7 +52,7 @@ In certain circumstances we may provide your Personal Information to third parti
 - Vendors and Service Providers: To assist us in meeting business operations needs and to perform certain services and functions, we may provide Personal Information to vendors and service providers, including providers of hosting services, cloud services, and other information technology services providers, event management services, email communication software and email newsletter services, and web analytics services. Pursuant to our instructions, these parties will access, process, or store Personal Information only in the course of performing their duties to us. 
 - Business Transfers: If we are involved in strategic transactions, reorganization, bankruptcy, receivership, or transition of service to another provider (collectively a "Transaction"), your Personal Information and other information may be disclosed in the diligence process with counterparties and others assisting with the Transaction and transferred to a successor or affiliate as part of that Transaction along with other assets. 
 - Legal Requirements: If required to do so by law or in the good faith belief that such action is necessary to (i) comply with a legal obligation, including to meet national security or law enforcement requirements, (ii) protect and defend our rights or property, (iii) prevent fraud, (iv) act in urgent circumstances to protect the personal safety of users of the Services, or the public, or (v) protect against legal liability. 
-- Affiliates: We may disclose Personal Information to our affiliates, meaning an entity that controls, is controlled by, or is under common control with Agnaistic. Our affiliates may use the Personal Information we share in a manner consistent with this Privacy Policy. 
+- Affiliates: We may disclose Personal Information to our affiliates, meaning an entity that controls, is controlled by, or is under common control with Murmur. Our affiliates may use the Personal Information we share in a manner consistent with this Privacy Policy. 
 
 ## 4. Your rights
 
@@ -65,7 +65,7 @@ Depending on location, individuals in the EEA, the UK, and across the globe may 
 - Withdraw your consent to the processing of your Personal Information where we rely on consent as the legal basis for processing. 
 - Object to or restrict the processing of your Personal Information where we rely on legitimate interests as the legal basis for processing
 
-You can exercise some of these rights through your Agnaistic account. If you are unable to exercise your rights through your account, please send your request in our [discord server ("https://agnai.chat/discord")](https://agnai.chat/discord).
+You can exercise some of these rights through your Murmur account. If you are unable to exercise your rights through your account, please send your request in our [discord server ("https://agnai.chat/discord")](https://agnai.chat/discord).
 
 ## 5. California privacy rights
 
@@ -94,11 +94,11 @@ We don't sell or share Personal Information as defined by the California Consume
 
 ## 6. Children
 
-Our Service is not directed to children who are under the age of 18. Agnaistic does not knowingly collect Personal Information from children under the age of 18. If you have reason to believe that a child under the age of 18 has provided Personal Information to Agnaistic through the Service please contact us on our [discord server ("https://agnai.chat/discord")](https://agnai.chat/discord). We will investigate any notification and if appropriate, delete the Personal Information from our systems.
+Our Service is not directed to children who are under the age of 18. Murmur does not knowingly collect Personal Information from children under the age of 18. If you have reason to believe that a child under the age of 18 has provided Personal Information to Murmur through the Service please contact us on our [discord server ("https://agnai.chat/discord")](https://agnai.chat/discord). We will investigate any notification and if appropriate, delete the Personal Information from our systems.
 
 ## 7. Links to other websites
 
-The Service may contain links to other websites not operated or controlled by Agnaistic, including social media services ("Third Party Sites"). The information that you share with Third Party Sites will be governed by the specific privacy policies and terms of service of the Third Party Sites and not by this Privacy Policy. By providing these links we do not imply that we endorse or have reviewed these sites. Please contact the Third Party Sites directly for information on their privacy practices and policies. 
+The Service may contain links to other websites not operated or controlled by Murmur, including social media services ("Third Party Sites"). The information that you share with Third Party Sites will be governed by the specific privacy policies and terms of service of the Third Party Sites and not by this Privacy Policy. By providing these links we do not imply that we endorse or have reviewed these sites. Please contact the Third Party Sites directly for information on their privacy practices and policies. 
 
 ## 8. Security and Retention
 
@@ -131,14 +131,12 @@ If you choose not to provide Personal Information that is needed to use some fea
 
 We may change this Privacy Policy at any time. When we do, we will post an updated version on this page, unless another type of notice is required by applicable law. By continuing to use our Service or providing us with Personal Information after we have posted an updated Privacy Policy, or notified you by other means, you consent to the revised Privacy Policy.
 
-## 12. How to contact us
-Please contact us on our [discord server ("https://agnai.chat/discord")](https://agnai.chat/discord) if you have any questions or concerns not already addressed in this Privacy Policy.
 `
 
 const PrivacyPolicyPage: Component = () => {
   return (
     <div>
-      <PageHeader title={<>Agnaistic Privacy Policy</>} />
+      <PageHeader title={<>Murmur Privacy Policy</>} />
       <div class="markdown flex flex-col gap-4" innerHTML={markdown.makeHtml(text)}></div>
     </div>
   )
